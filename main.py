@@ -187,31 +187,20 @@ class OrderSystemApp():
         
         # Iterate over rows in descending order and append the first 12 rows
         rows_to_append = []
-        total_sales = 0
         start_date = int(self.start_date.get().replace("-", ""))
         end_date = int(self.end_date.get().replace("-", ""))
 
-        for row in range(2, 13):
+        for row in range(2, sheet.max_row + 1):
             values = []
             date = int(str(sheet[f"D{row}"].value).replace("-","")[:8])
-            
+
             if start_date <= date <= end_date:
-                for col in range(1, len(self.table_header) + 1):
-                    if isinstance(sheet.cell(row=row, column=col).value, datetime):
-                        values.append(sheet.cell(row=row, column=col).value.date())
+                rows_to_append.append(self.get_data(row))
 
-                    else:
-                        values.append(sheet.cell(row=row, column=col).value)
-                        
-                        if col == 5:
-                            total_sales += float(sheet.cell(row=row,column=col).value)
-
-                rows_to_append.append(reversed(values))
-
-        self.table_data.extend(rows_to_append)
+        self.table_data.extend(reversed(rows_to_append))
         
         self.total_orders.configure(text=len(self.table_data)-1)
-        self.total_sales.configure(text=f"₱{total_sales:.2f}")
+        self.total_sales.configure(text=f"₱{sum([float(bill[4]) for bill in self.table_data[1:]]):.2f}")
 
         # Create table frame 
         self.table_frame = CTkScrollableFrame(master=self.dashboard_view, fg_color="transparent",scrollbar_button_color=COLOR2, scrollbar_button_hover_color=COLOR3)
