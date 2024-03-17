@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import openpyxl 
 import os
 
-
 # COLOR PALLETE FROM THIS LINK
 # https://colorhunt.co/palette/5356ff378ce767c6e3dff5ff
 COLOR1 = "#5356FF"
@@ -33,18 +32,28 @@ else:
     # Optionally, handle this case (e.g., create a new Excel file)
 
 
-class OrderSystemApp():
+class DashboardApp():
     def __init__(self):
         self.app = CTk()
-        self.app.geometry(self.center_window(self.app, 850, 700, self.app._get_window_scaling()))
+        self.app.geometry(self.center_window(self.app, 1000, 700, self.app._get_window_scaling()))
         self.app.resizable(0,0)
         self.app.title("Order System")
         set_appearance_mode("light")
         self.app.iconbitmap("assets/logo.ico")
 
+        # Get Price
+        self.price = {"Pizza": sheet["J2"].value, 
+                 "Carbonara": sheet["J3"].value,
+                 "Chicken": sheet["J4"].value,
+                 "Pancit": sheet["J5"].value,
+                 "Lasagna": sheet["J6"].value}
+        
         self.no_order_id_label = None
+        self.order_view = None
+        self.dashboard_view = None
         self.setupSidebar() # display side bar
         self.dashboardView() # display dashboard
+        # self.orderView() # disaply order
 
     # Side Bar FRAME
     def setupSidebar(self):
@@ -61,12 +70,14 @@ class OrderSystemApp():
         # Dashboard Nav Bar
         analytics_img_data = Image.open("assets/analytics_icon.png")
         analytics_img = CTkImage(dark_image=analytics_img_data, light_image=analytics_img_data)
-        CTkButton(master=self.sidebar_frame, image=analytics_img, text="Dashboard", fg_color="transparent", font=("Arial Bold", 14), hover_color=COLOR2, anchor="w").pack(anchor="center", ipady=5, pady=(60, 0))
+        self.sidebar_dashboard_nav = CTkButton(master=self.sidebar_frame, image=analytics_img, text="Dashboard", fg_color="transparent", font=("Arial Bold", 14), hover_color=COLOR2, anchor="w", command=self.dashboardView)
+        self.sidebar_dashboard_nav.pack(anchor="center", ipady=5, pady=(60, 0))
 
         # Order Nav Bar
         package_img_data = Image.open("assets/cart_icon.png")
         package_img = CTkImage(dark_image=package_img_data, light_image=package_img_data)
-        CTkButton(master=self.sidebar_frame, image=package_img, text="Orders", fg_color="transparent", font=("Arial Bold", 14), hover_color=COLOR2, anchor="w").pack(anchor="center", ipady=5, pady=(16, 0))
+        self.sidebar_order_nav = CTkButton(master=self.sidebar_frame, image=package_img, text="Orders", fg_color="transparent", font=("Arial Bold", 14), hover_color=COLOR2, anchor="w", command=self.orderView)
+        self.sidebar_order_nav.pack(anchor="center", ipady=5, pady=(16, 0))
 
         # Account Informaion (Initial Only)
         person_image_data = Image.open("assets/person_icon.png")
@@ -76,8 +87,14 @@ class OrderSystemApp():
         
     # Dashboard View
     def dashboardView(self):
+        if self.order_view:
+            self.order_view.destroy()
+
+        self.sidebar_dashboard_nav.configure(fg_color=COLOR2)
+        self.sidebar_order_nav.configure(fg_color="transparent")
+
         # Create dashboard frame
-        self.dashboard_view = CTkFrame(master=self.app, fg_color="#ffffff",  width=730, height=800, corner_radius=0)
+        self.dashboard_view = CTkFrame(master=self.app, fg_color="#ffffff",  width=880, height=800, corner_radius=0)
         self.dashboard_view.pack_propagate(0)
         self.dashboard_view.pack(side="left")
 
@@ -129,7 +146,7 @@ class OrderSystemApp():
         # Frame for metrics view chart and edit by order ID using grid
         self.modification_metric = CTkFrame(master=self.metrics_frame, fg_color="transparent", width=250, height=80, corner_radius=12)
         self.modification_metric.grid_propagate(0)        
-        self.modification_metric.pack(side="left")
+        self.modification_metric.pack(side="right")
 
         # View Chart at grid row 0
         CTkLabel(master=self.modification_metric, text="View chart by:", text_color="black", font=("Arial Black", 12)).grid(row=0, column=0, rowspan=1, padx=0, pady=10)
@@ -152,8 +169,8 @@ class OrderSystemApp():
         self.search_container.pack(fill="x", pady=(30, 0), padx=27)
 
         # Input field for Order ID filter
-        self.search_order_id = CTkEntry(master=self.search_container, width=150, placeholder_text="Search Order", border_color=COLOR3, border_width=2)
-        self.search_order_id.pack(side="left", padx=(13, 0), pady=15)
+        self.search_order_id = CTkEntry(master=self.search_container, width=200, placeholder_text="Search Order", border_color=COLOR3, border_width=2)
+        self.search_order_id.pack(side="left", padx=(13, 100), pady=15)
         self.search_order_id.bind("<Return>", self.filter_order_id)
 
         current_date = datetime.now().strftime("%Y-%m-%d") # get current date
@@ -191,7 +208,6 @@ class OrderSystemApp():
         end_date = int(self.end_date.get().replace("-", ""))
 
         for row in range(2, sheet.max_row + 1):
-            values = []
             date = int(str(sheet[f"D{row}"].value).replace("-","")[:8])
 
             if start_date <= date <= end_date:
@@ -213,12 +229,176 @@ class OrderSystemApp():
             self.table.edit_row(0, text_color="#fff", hover_color=COLOR2)
             self.table.pack(expand=True)
 
+    def orderView(self):
+        # destroy the dashboard set active color to the navbar
+        if self.dashboard_view:
+            self.dashboard_view.destroy()
+        self.sidebar_order_nav.configure(fg_color=COLOR2)
+        self.sidebar_dashboard_nav.configure(fg_color="transparent")
+        
+        # Create order frame
+        self.order_view = CTkFrame(master=self.app, fg_color="#ffffff",  width=880, height=800, corner_radius=0)
+        self.order_view.pack_propagate(0)
+        self.order_view.pack(side="left")
 
+# ----------------------------------------------------------------------------------------------------------------------------------- #
+
+        # Title frame for order_view
+        self.title_frame = CTkFrame(master=self.order_view, fg_color="transparent")
+        self.title_frame.pack(anchor="n", fill="x",  padx=27, pady=(29, 35))
+
+        max_id = max([sheet[f"A{row}"].value for row in range(2, sheet.max_row+1)])
+        self.next_order_id = max_id+1
+
+        CTkLabel(master=self.title_frame, text="Order Number: ", font=("Arial Black", 30), text_color=COLOR1).pack(anchor="nw", side="left")
+        self.Order_ID = CTkLabel(master=self.title_frame, text=f"{self.next_order_id}", text_color=COLOR1, font=("Arial Black", 30))
+        self.Order_ID.pack(anchor="nw", side="left")
+
+# ----------------------------------------------------------------------------------------------------------------------------------- #
+    
+        # Create order frame
+        self.order_frame = CTkFrame(master=self.order_view, fg_color="#d2d3d6")
+        self.order_frame.pack(anchor="n", fill="x",  padx=27, pady=(0, 0))
+        
+    # ------------------------------------------------------------------------------------------------------------------------- #
+        # Table Number Field
+        self.table_number_field = CTkFrame(master=self.order_frame, fg_color="transparent")
+        self.table_number_field.pack(anchor="n", fill="x",  padx=27, pady=(20,0))
+        
+        table_num_options = ['1','2','3','4','5','6','7','8','9','10','TakeOut']
+        CTkLabel(master=self.table_number_field, text="Table Number:", font=("Arial Black", 18)).pack(side="left")
+
+        self.table_number = CTkComboBox(master=self.table_number_field, button_color=COLOR1, border_color=COLOR2, button_hover_color=COLOR2, width=150, dropdown_hover_color=COLOR3, state="readonly", values=table_num_options)
+        self.table_number.pack(side="left", padx=20)
+    
+    # ------------------------------------------------------------------------------------------------------------------------- #
+        # Orders Field
+        self.orders_field = CTkFrame(master=self.order_frame, fg_color="transparent")
+        self.orders_field.grid_propagate(0)
+        self.orders_field.pack(anchor="n", fill="x", padx=27, pady=(30,0))
+        
+        CTkLabel(master=self.orders_field, text="Orders:", font=("Arial Black", 20)).grid(row=0, column=3, pady=(0,5))
+
+        row_data_oders ={"Pizza": 0,
+                         "Carbonara": 0,
+                         "Chicken": 0,
+                         "Pancit": 0,
+                         "Lasagna": 0}
+
+        def create_components(item_name, x, y):
+            # Create widgets
+            checkbox = CTkCheckBox(master=self.orders_field, text=item_name, font=("Arial", 15), width=10, onvalue="on", offvalue="off", command=lambda: self.orders_check(slider, quantity_label, checkbox, row_data_oders, item_name))
+            checkbox.grid(row=x, column=y, padx=(0, 30), pady=10, sticky="w")
+
+            quantity_label = CTkLabel(master=self.orders_field, text="0", font=("Arial", 20), justify="center", width=30)
+            quantity_label.grid(row=x, column=y + 1, padx=(0, 0), pady=10)
+
+            slider = CTkSlider(master=self.orders_field, from_=0, to=10, width=150, state='disabled', command=lambda value: self.slider_event(value, quantity_label, item_name, row_data_oders))
+            slider.grid(row=x, column=y + 2, padx=(0, 0), pady=10)
+
+            return checkbox, quantity_label, slider
+        
+        # create component for each menu
+        self.pizza_checkbox, self.pizza_quantity, self.pizza_slider = create_components("Pizza", 1, 0)
+        self.carbonara_checkbox, self.carbonara_quantity, self.carbonara_slider = create_components("Carbonara", 2, 0)
+        self.chicken_checkbox, self.chicken_quantity, self.chicken_slider = create_components("Chicken", 3, 0)
+        self.pancit_checkbox, self.pancit_quantity, self.pancit_slider = create_components("Pancit", 1, 4)
+        self.lasagna_checkbox, self.lasagna_quantity, self.lasagna_slider = create_components("Lasagna", 2, 4)
+
+        # add order button
+        self.add_order_btn = CTkButton(self.order_view, text="Add Order", font=("Arial", 15), fg_color=COLOR1, hover_color=COLOR2, text_color=COLOR4,width=150, height=35, command=lambda: self.order_information_window(self.next_order_id, self.table_number.get(), row_data_oders))
+        self.add_order_btn.pack(anchor="ne", padx=30, pady=20)
+
+    def order_information_window(self, order_id, table_number, orders):
+        # check if any of the order is not 0
+        num = 0
+        for val in orders.values():
+            if val > num:
+                num = val
+                break
+        
+        # display error when either of table number or orders is empty
+        if table_number == "" or num <= 0:
+            messagebox.showerror("Error Message", "Invalid Order!")
+            return
+
+        date = datetime.now().strftime("%Y-%m-%d") # Date today
+        bill = sum(orders[order]*self.price[order] for order in orders) # sum of all the orders
+        status = "Serving"
+
+        # create the window
+        order_information_window = CTkToplevel()
+        order_information_window.grab_set()
+        order_information_window.title("Confirmation")
+        order_information_window.after(250, lambda: order_information_window.iconbitmap('assets/logo.ico'))
+        order_information_window.geometry(self.center_window(order_information_window, 260, 300, order_information_window._get_window_scaling()))
+        order_information_window.resizable(0, 0)
+
+        # Create Label to display the information
+        CTkLabel(master=order_information_window, text=f"Order ID\t\t: {order_id}", font=("Arial", 15)).place(x=10, y=10)
+        CTkLabel(master=order_information_window, text=f"Table Number\t: {table_number}", font=("Arial", 15)).place(x=10, y=30)
+        CTkLabel(master=order_information_window, text=f"Date\t\t: {date}", font=("Arial", 15)).place(x=10, y=50)
+        CTkLabel(master=order_information_window, text=f"Bill\t\t: ₱{bill}", font=("Arial", 15)).place(x=10, y=70)
+        CTkLabel(master=order_information_window, text=f"Status\t\t: {status}", font=("Arial", 15)).place(x=10, y=90)
+        CTkLabel(master=order_information_window, text="Orders:", font=("Arial", 15)).place(x=10, y=120)
+
+        # Displaying orders
+        y_offset = 120  # Initial y-coordinate for the first order
+        for menu, count in orders.items():
+            if count > 0:
+                order_text = f"\u2022 {count} {menu}"  # Using bullet character \u2022
+                CTkLabel(order_information_window, text=order_text, font=("Arial", 13)).place(x=90, y=y_offset)
+                y_offset += 20  # Increment y-coordinate for next order
+
+        # Confirmation Button
+        CTkButton(master=order_information_window, text="Confirm", fg_color=COLOR1, font=("Arial", 15), command=lambda: self.add(order_id, table_number, orders, date, bill, status, order_information_window)).place(x=60, y=260)
+        
+    def add(self, order_id, table_num, orders, date, bill, status, window):
+        order = ""
+        # get the menu separated by comma to it in excel
+        for menu, num in orders.items():
+            order += (menu + ", ") * num
+        order = order[:-2]
+        row = (order_id, table_num if table_num == "TakeOut" else int(table_num), order, date, bill, status)
+        sheet.append(row)
+        workbook.save(EXCEL_FILE)
+
+        window.destroy()
+        self.order_view.destroy()
+        self.orderView()
+
+    # just get the value of sliders and display it dynamically
+    def slider_event(self, value, label, item_name, row_data_orders, amount_entry=None):
+        label.configure(text=int(value))
+        row_data_orders[item_name] = int(value)
+
+        bill = sum(row_data_orders[order]*self.price[order] for order in row_data_orders)
+        if amount_entry:
+            amount_entry.delete(0, END)
+            amount_entry.insert(0, f"{bill:.2f}")
+
+    # for slider event set disabled if checkbox is off
+    def orders_check(self, slider, quantity_label, check_var, row_data_orders, item_name, amount_entry=None):
+        slider.configure(state='disabled' if check_var.get() == 'off' else 'normal')
+        if check_var.get() == "off":
+            quantity_label.configure(text=0)
+            row_data_orders[item_name] = 0
+
+        bill = sum(row_data_orders[order]*self.price[order] for order in row_data_orders)
+        if amount_entry:
+            amount_entry.delete(0, END)
+            amount_entry.insert(0, f"{bill:.2f}")
 
     # For edit order window
     def edit_order(self, order_id):
         if order_id == "":
             order_id = 0
+        try:
+            order_id = int(order_id)
+        except:
+            messagebox.showerror("Error Message", "Invalid Order ID")
+            return
+        
         self.row = 0
 
         # get order id rows
@@ -268,22 +448,11 @@ class OrderSystemApp():
 
             # Display Orders
             CTkLabel(master=self.edit_window, text="Orders:", text_color="black",font=("Arial", 15), justify="center").place(x=10,y=100)
-            
-            # just get the value of sliders and display it dynamically
-            def slider_event(value, label, item_name):
-                label.configure(text=int(value))
-                row_data_orders[item_name] = int(value)
-
-            # for slider event set disabled if checkbox is off
-            def orders_check(slider, quantity_label, check_var):
-                slider.configure(state='disabled' if check_var.get() == 'off' else 'normal')
-                if check_var.get() == "off":
-                    quantity_label.configure(text=0)
 
             def create_components(item_name, x, y, var):
                 # Check Box
                 checkbox = CTkCheckBox(self.edit_window, text=item_name, width=5,
-                                       command=lambda: orders_check(slider, quantity_label, var),
+                                       command=lambda: self.orders_check(slider, quantity_label, var, row_data_orders, item_name, self.total_bill),
                                        variable=var, onvalue="on", offvalue="off")
                 checkbox.place(x=x, y=y)
 
@@ -291,7 +460,7 @@ class OrderSystemApp():
                 quantity_label.place(x=x+95, y=y-1)
 
                 slider = CTkSlider(master=self.edit_window, from_=0, to=10,
-                                   command=lambda value: slider_event(value, quantity_label, item_name),
+                                   command=lambda value: self.slider_event(value, quantity_label, item_name, row_data_orders, self.total_bill),
                                    width=100, state='disabled' if var.get() == 'off' else 'normal')
                 slider.place(x=x+115, y=y+5)
 
@@ -331,12 +500,15 @@ class OrderSystemApp():
 
 
             def display_change(event, amount, bill):
-                amount, bill = float(amount), float(bill)
-                change = amount - bill
-                self.total_change.delete(0, END)
-                self.amount_pay.delete(0, END)
-                self.total_change.insert(0, f"{change:.2f}")
-                self.amount_pay.insert(0, f"{amount:.2f}")
+                try:
+                    amount, bill = float(amount), float(bill)
+                    change = amount - bill
+                    self.total_change.delete(0, END)
+                    self.amount_pay.delete(0, END)
+                    self.total_change.insert(0, f"{change:.2f}")
+                    self.amount_pay.insert(0, f"{amount:.2f}")
+                except:
+                    messagebox.showerror("Error Message", "Invalid Input!")
 
 # ----------------------------------------------------------------------------------------------------------------------------------- #
 
@@ -422,7 +594,11 @@ class OrderSystemApp():
 
     # Edit the data in edit window
     def edit(self, row, table_number, orders, total_bill, status):
-        print(row)
+        try:
+            total_bill = float(total_bill)
+        except:
+            messagebox.showerror("Error Message", "Invalid Input!")
+            return
         order = ""
         
         # get the menu separated by comma to it in excel
@@ -436,7 +612,7 @@ class OrderSystemApp():
             sheet[f"B{row}"] = int(table_number)
         
         # Change the value in excel
-        sheet[f"E{row}"] = float(total_bill)
+        sheet[f"E{row}"] = total_bill
         sheet[f"F{row}"] = status
         sheet[f"C{row}"] = order[:-2] # stop at last 2 digit to erase the ", "
         workbook.save(EXCEL_FILE)
@@ -564,7 +740,11 @@ class OrderSystemApp():
         return rows_to_append
 
     def filter_order_id(self, event):
-        order_id = int(self.search_order_id.get())
+        try:
+            order_id = int(self.search_order_id.get())
+        except:
+            messagebox.showerror("Error Message", "Invalid Order ID")
+            return
         filtered_data = []
         row_order_ID = None
 
@@ -615,12 +795,9 @@ class OrderSystemApp():
 
         return f'{width}x{height}+{x}+{y}'
 
-    def fun(self):
-        print("EXECUTED")
-
     def run(self):
         self.app.mainloop()
 
 if __name__ == "__main__":
-    order_system_app = OrderSystemApp()
-    order_system_app.run()
+    dashboard_app = DashboardApp()
+    dashboard_app.run()
