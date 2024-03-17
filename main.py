@@ -37,7 +37,7 @@ class DashboardApp():
         self.app = CTk()
         self.app.geometry(self.center_window(self.app, 1000, 700, self.app._get_window_scaling()))
         self.app.resizable(0,0)
-        self.app.title("Order System")
+        self.app.title("Order Management System")
         set_appearance_mode("light")
         self.app.iconbitmap("assets/logo.ico")
 
