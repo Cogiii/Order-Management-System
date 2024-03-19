@@ -15,7 +15,7 @@ COLOR2 = "#378CE7"
 COLOR3 = "#67C6E3"
 COLOR4 = "#DFF5FF"
 
-EXCEL_FILE = 'Orders.xlsx'
+EXCEL_FILE = 'database/Orders.xlsx'
 
 # Check if the Excel file exists
 if os.path.exists(EXCEL_FILE):
@@ -585,7 +585,7 @@ class DashboardApp():
     
     def delete(self, row):
         # delete the given row
-        sheet.delete_rows(22, 1)
+        sheet.delete_rows(row, 1)
         workbook.save(EXCEL_FILE)
 
         # destroy the window
